@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mondragon.framer.website/sitemap.xml
