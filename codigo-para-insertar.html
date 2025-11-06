@@ -1,0 +1,111 @@
+<!-- Start of bodyEnd -->
+<!-- CSS de respaldo para ocultar badges de Framer -->
+<style>
+  /* Badge "Buy Template" de LemonSqueezy */
+  .framer-60pafq-container,
+  .framer-Dqd5S[href*="lemonsqueezy"],
+  a[href*="lemonsqueezy"][href*="buy"],
+  div[class*="container"]:has(a[href*="lemonsqueezy"]) {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+  /* Badge "Made in Framer" */
+  .__framer-badge,
+  #__framer-badge-container,
+  .framer-6jWyo,
+  .framer-n0ccwk,
+  a[href*="framer.com"][data-nosnippet="true"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+</style>
+<!-- Script para eliminar badges de forma permanente -->
+<script>
+(function() {
+  'use strict';
+  function removeBuyTemplateBadge() {
+    let removed = false;
+    const container = document.querySelector('.framer-60pafq-container');
+    if (container && container.parentElement) {
+      container.remove();
+      removed = true;
+    }
+    document.querySelectorAll('a[href*="lemonsqueezy"]').forEach(function(link) {
+      const text = (link.textContent || '').trim().toLowerCase();
+      if (text.includes('buy') || text.includes('template')) {
+        let parent = link.closest('.framer-60pafq-container') || link.closest('div[class*="container"]') || link.parentElement;
+        if (parent) {
+          parent.remove();
+          removed = true;
+        }
+      }
+    });
+    return removed;
+  }
+  function removeFramerBadge() {
+    let removed = false;
+    const badgeContainer = document.getElementById('__framer-badge-container');
+    if (badgeContainer && badgeContainer.parentElement) {
+      badgeContainer.remove();
+      removed = true;
+    }
+    document.querySelectorAll('.__framer-badge, .framer-6jWyo, .framer-n0ccwk').forEach(function(badge) {
+      if (badge.parentElement) {
+        const container = badge.closest('#__framer-badge-container') || badge.parentElement;
+        container.remove();
+        removed = true;
+      }
+    });
+    document.querySelectorAll('a[href*="framer.com"][data-nosnippet="true"]').forEach(function(link) {
+      const container = link.closest('div') || link.parentElement;
+      if (container) {
+        container.remove();
+        removed = true;
+      }
+    });
+    return removed;
+  }
+  function removeBadges() {
+    return removeBuyTemplateBadge() || removeFramerBadge();
+  }
+  function observeAndRemove(duration) {
+    const endTime = Date.now() + duration;
+    let attempts = 0;
+    const observer = new MutationObserver(function() {
+      removeBadges();
+      if (Date.now() > endTime) observer.disconnect();
+    });
+    observer.observe(document.documentElement, { subtree: true, childList: true });
+    const intervalId = setInterval(function() {
+      attempts++;
+      removeBadges();
+      if (attempts >= 40 || Date.now() > endTime) clearInterval(intervalId);
+    }, 150);
+    setTimeout(function() {
+      observer.disconnect();
+      clearInterval(intervalId);
+    }, duration);
+  }
+  function init() {
+    removeBadges();
+    observeAndRemove(10000);
+    setTimeout(removeBadges, 500);
+    setTimeout(removeBadges, 1000);
+    setTimeout(removeBadges, 2000);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  window.addEventListener('load', function() {
+    removeBadges();
+    observeAndRemove(5000);
+  });
+})();
+</script>
+<!-- End of bodyEnd -->

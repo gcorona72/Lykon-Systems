@@ -1,0 +1,36 @@
+/* CSS de respaldo para ocultar badges de Framer */
+
+/* Badge "Buy Template" de LemonSqueezy */
+.framer-60pafq-container,
+.framer-Dqd5S[href*="lemonsqueezy"],
+a[href*="lemonsqueezy"][href*="buy"],
+div[class*="container"]:has(a[href*="lemonsqueezy"]) {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Badge "Made in Framer" */
+.__framer-badge,
+#__framer-badge-container,
+.framer-6jWyo,
+.framer-n0ccwk,
+a[href*="framer.com"][data-nosnippet="true"],
+.framer-13yxzio:has(+ a[href*="framer.com"]) {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* Ocultar divs que contengan badges */
+div:has(> .__framer-badge),
+div:has(> a[href*="lemonsqueezy"]) {
+  display: none !important;
+}
+
