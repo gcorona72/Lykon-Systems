@@ -107,8 +107,9 @@
 
   function snapshotTree(root) {
     var all = root.querySelectorAll('[data-custom-classes], [class*="' + CUSTOM_PREFIX + '"], *');
-    // Para no ser costoso, solo snapshot atributos protegidos si existen
     for (var i = 0; i < all.length; i++) snapshotProtectedAttributes(all[i]);
+    // añadir snapshot de texto visible
+    snapshotTextTree(root);
   }
 
   // Badges / Promos: eliminar si aparecen
@@ -129,6 +130,52 @@
       if (parent && parent.parentElement) { parent.remove(); removed = true; log('Elemento promocional eliminado'); }
     });
     return removed;
+  }
+
+  // --- NUEVO: Protección de texto visible ---
+  var TEXT_PROTECT_ENABLED = true;
+  var textSnapshot = new WeakMap(); // element -> original textContent
+  var SKIP_TEXT_TAGS = { SCRIPT:1, STYLE:1, NOSCRIPT:1, TEXTAREA:1, INPUT:1, SVG:0 };
+
+  function isTextBearingElement(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (SKIP_TEXT_TAGS[el.tagName]) return false;
+    if (el.hasAttribute('data-allow-text-change')) return false; // opt-out explícito
+    // Heurística: tags típicos y/o si contiene algún nodo de texto no vacío
+    var tag = el.tagName;
+    if (/^(H1|H2|H3|H4|H5|H6|P|SPAN|A|LI|BUTTON|STRONG|EM|SMALL|LABEL|DIV)$/i.test(tag)) return true;
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var n = el.childNodes[i];
+      if (n.nodeType === 3 && /\S/.test(n.nodeValue)) return true; // text node con no-espacio
+    }
+    return false;
+  }
+
+  function snapshotText(el) {
+    if (!TEXT_PROTECT_ENABLED) return;
+    if (!isTextBearingElement(el)) return;
+    try { textSnapshot.set(el, el.textContent); } catch (e) { /* ignore */ }
+  }
+
+  function restoreText(el) {
+    if (!TEXT_PROTECT_ENABLED) return false;
+    if (!isTextBearingElement(el)) return false;
+    var orig = textSnapshot.get(el);
+    if (typeof orig !== 'string') return false;
+    var now = el.textContent;
+    if (now !== orig) {
+      el.textContent = orig;
+      log('Restaurado texto en', el);
+      return true;
+    }
+    return false;
+  }
+
+  function snapshotTextTree(root) {
+    if (!TEXT_PROTECT_ENABLED) return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null);
+    var node;
+    while ((node = walker.nextNode())) snapshotText(node);
   }
 
   // --- THROTTLE de mutaciones ---
@@ -156,6 +203,10 @@
           } else if (isProtectedAttribute(m.attributeName)) {
             touched = restoreProtectedAttributes(m.target) || touched;
           }
+        } else if (m.type === 'characterData') {
+          // Restaurar texto si fue alterado
+          var host = m.target && m.target.parentNode && m.target.parentNode.nodeType === 1 ? m.target.parentNode : null;
+          if (host) touched = restoreText(host) || touched;
         } else if (m.type === 'childList') {
           if (m.addedNodes && m.addedNodes.length) {
             for (var j = 0; j < m.addedNodes.length; j++) {
@@ -164,6 +215,8 @@
                 snapshotProtectedAttributes(node);
                 ensureCustom(node);
                 try { applyOverrides(node); } catch (e) {}
+                // capturar texto inicial del nuevo subárbol
+                snapshotTextTree(node);
               }
             }
           }
@@ -182,8 +235,9 @@
     mo.observe(document.documentElement, {
       subtree: true,
       childList: true,
-      attributes: true
-      // Nota: observamos todos los atributos para poder restaurar prefijos protegidos (data-custom-*, data-protect-*, etc.)
+      attributes: true,
+      characterData: true,
+      characterDataOldValue: false
     });
     window.__domGuardObserver = mo;
   }
@@ -195,12 +249,21 @@
         applyOverrides(document);
         removeBadgesOnce();
         startObserver();
+        // Re-snapshot de texto cuando el traductor runtime termine su primera pasada
+        try {
+          window.addEventListener('runtime-translate-ready', function(){
+            log('evento runtime-translate-ready recibido, snapshot de texto');
+            snapshotTextTree(document);
+          });
+        } catch (e) {}
+        // Fallback: si no hay evento, intentar re-snapshot pasado un tiempo
+        setTimeout(function(){ snapshotTextTree(document); }, 800);
         window.domGuard = {
           applyOverrides: function () { applyOverrides(document); },
           removeBadges: removeBadgesOnce,
           CUSTOM_PREFIX: CUSTOM_PREFIX,
           debug: false, // activar manualmente: window.domGuard.debug = true;
-          resnapshot: function () { snapshotTree(document); log('Re-snapshot atributos protegidos'); },
+          resnapshot: function () { snapshotTree(document); log('Re-snapshot completo'); },
           restoreAll: function () {
             var els = document.querySelectorAll('*');
             els.forEach(restoreProtectedAttributes);
