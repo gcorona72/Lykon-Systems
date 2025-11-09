@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+# Auto-minify index.html if script exists
+if [ -f scripts/minify_index_html.py ]; then
+  echo "[pre-commit] Minificando index.html..." >&2
+  python3 -u scripts/minify_index_html.py >/dev/null 2>&1 || true
+  git add index.html 2>/dev/null || true
+fi
+# Enforce size threshold (2.6 MB)
+BYTES=$(wc -c < index.html)
+MAX=2600000
+if [ "$BYTES" -gt "$MAX" ]; then
+  echo "[pre-commit] ERROR: index.html demasiado grande ($BYTES bytes). Máximo permitido: $MAX" >&2
+  echo "[pre-commit] Sugerencia: ejecuta scripts/minify_index_html.py y revisa diffs." >&2
+  exit 1
+fi
+exit 0
+
